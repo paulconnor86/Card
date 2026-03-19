@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paul's Card</title>
 <style>
-  @import url('https://fonts.google.com/specimen/Permanent+Marker');
+  @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Space+Mono:wght@400;700&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --ink: #ffffff;
+    --ink: #1a1a2e;
     --paper: #f0f0f8;
-    --accent: #A9FF40;
-    --muted: #ffffff;
+    --accent: #e63946;
+    --muted: #6c757d;
     --bg: #0d0d0d;
   }
 
@@ -24,19 +24,18 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-family: 'Permanent Marker', monospace;
-    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
     color: #eee;
     padding: 2rem 1rem;
     gap: 2rem;
   }
 
   h1 {
-    font-family: 'Permanent Marker', monospace;
+    font-family: 'Space Mono', monospace;
     font-size: clamp(0.9rem, 2vw, 1.1rem);
     letter-spacing: 0.25em;
     text-transform: uppercase;
-     color: #ffffff;
+    color: var(--accent);
     text-align: center;
   }
 
@@ -71,10 +70,9 @@
   }
 
   .card-text {
-    font-family: 'Caveat', cursive;
+    font-family: 'Permanent Marker', cursive;
     font-size: clamp(14px, 3.5vw, 28px);
     font-weight: 600;
-        text-transform: uppercase;
     color: #1a1230;
     text-align: center;
     line-height: 1.35;
@@ -104,7 +102,7 @@
     font-size: 0.7rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: #A9FF40;
+    color: var(--muted);
     margin-bottom: 0.25rem;
     display: block;
   }
@@ -114,8 +112,8 @@
     background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 4px;
-    color: #ffffff;
-    font-family: 'Caveat', cursive;
+    color: #eee;
+    font-family: 'Permanent Marker', cursive;
     font-size: 1.3rem;
     padding: 0.75rem 1rem;
     resize: vertical;
@@ -177,6 +175,16 @@
     color: var(--accent);
   }
 
+  .download-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .download-btn:hover {
+    background: var(--accent);
+    color: #0d0d0d;
+  }
+
   .hint {
     font-size: 0.68rem;
     color: #444;
@@ -209,17 +217,21 @@
       <span id="sizeLabel">100%</span>
     </div>
     <button class="clear-btn" id="clearBtn">Clear</button>
+    <button class="clear-btn download-btn" id="downloadBtn">↓ Download</button>
   </div>
 </div>
 
 <p class="hint">text renders directly onto the card in real-time</p>
 
 <script>
-  const textInput  = document.getElementById('textInput');
-  const cardText   = document.getElementById('cardText');
-  const sizeSlider = document.getElementById('sizeSlider');
-  const sizeLabel  = document.getElementById('sizeLabel');
-  const clearBtn   = document.getElementById('clearBtn');
+  const textInput   = document.getElementById('textInput');
+  const cardText    = document.getElementById('cardText');
+  const sizeSlider  = document.getElementById('sizeSlider');
+  const sizeLabel   = document.getElementById('sizeLabel');
+  const clearBtn    = document.getElementById('clearBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const sceneImg    = document.querySelector('.scene img');
+  const scene       = document.querySelector('.scene');
 
   function update() {
     const val = textInput.value.trim();
@@ -236,6 +248,99 @@
   textInput.addEventListener('input', update);
   sizeSlider.addEventListener('input', applySize);
   clearBtn.addEventListener('click', () => { textInput.value = ''; update(); });
+
+  // ── Download as PNG ──────────────────────────────────────────────
+  downloadBtn.addEventListener('click', async () => {
+    const text = textInput.value.trim();
+    if (!text) { alert('Type something on the card first!'); return; }
+
+    downloadBtn.textContent = 'Preparing…';
+    downloadBtn.disabled = true;
+
+    // Image natural dimensions
+    const imgW = sceneImg.naturalWidth;   // 1760
+    const imgH = sceneImg.naturalHeight;  // 1020
+
+    // Card overlay percentages (must match CSS)
+    const oTop    = 0.4804;
+    const oLeft   = 0.2528;
+    const oWidth  = 0.3807;
+    const oHeight = 0.3824;
+    const oPad    = 0.03;
+
+    const cardX = oLeft  * imgW;
+    const cardY = oTop   * imgH;
+    const cardW = oWidth * imgW;
+    const cardH = oHeight * imgH;
+    const padX  = oPad   * imgW;
+    const padY  = oPad   * imgH;
+
+    // Load font into canvas context
+    const font = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff2)');
+    await font.load();
+    document.fonts.add(font);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = imgW;
+    canvas.height = imgH;
+    const ctx = canvas.getContext('2d');
+
+    // Draw the base image
+    ctx.drawImage(sceneImg, 0, 0, imgW, imgH);
+
+    // Compute font size scaled to native resolution
+    // The displayed scene width vs native width ratio
+    const sceneDisplayW = scene.offsetWidth;
+    const scale = imgW / sceneDisplayW;
+    const displayedFontPx = parseFloat(getComputedStyle(cardText).fontSize);
+    const nativeFontPx = displayedFontPx * scale;
+
+    // Text area bounds (inset by padding)
+    const tx = cardX + padX;
+    const ty = cardY + padY;
+    const tw = cardW - padX * 2;
+    const th = cardH - padY * 2;
+
+    ctx.font = `bold ${nativeFontPx}px "Permanent Marker"`;
+    ctx.fillStyle = '#1a1230';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Word-wrap the text to fit card width
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > tw && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+
+    // Handle explicit newlines too
+    const finalLines = lines.flatMap(l => l.split('\n'));
+
+    const lineHeight = nativeFontPx * 1.35;
+    const totalH = finalLines.length * lineHeight;
+    const startY = ty + th / 2 - totalH / 2 + lineHeight / 2;
+
+    finalLines.forEach((l, i) => {
+      ctx.fillText(l, tx + tw / 2, startY + i * lineHeight);
+    });
+
+    // Export
+    const a = document.createElement('a');
+    a.download = 'paul-card.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+
+    downloadBtn.textContent = '↓ Download';
+    downloadBtn.disabled = false;
+  });
 
   // Auto-focus
   textInput.focus();
